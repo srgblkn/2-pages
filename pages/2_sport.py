@@ -1,6 +1,9 @@
 import streamlit as st
 from PIL import Image
 import torch
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from model.preprocessing_sport import preprocess, CLASS_NAMES
 
