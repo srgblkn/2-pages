@@ -38,8 +38,8 @@ with st.sidebar:
     st.divider()
     st.caption("Страницы:")
     # Эти ссылки заработают, когда ты создашь файлы в папке pages/
-    st.page_link("pages/1_Кровь.py", label="🩸 Анализ крови", icon="🩸")
-    st.page_link("pages/2_Спорт_по_фото.py", label="🏅 Вид спорта по фото", icon="🏅")
+    st.page_link("pages/1_blood.py", label="🩸 Анализ крови", icon="🩸")
+    st.page_link("pages/2_sport.py", label="🏅 Вид спорта по фото", icon="🏅")
 
 # 4) Главная (landing page)
 st.markdown(
