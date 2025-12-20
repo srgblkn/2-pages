@@ -65,13 +65,13 @@ with c1:
     with st.container(border=True):
         st.subheader("🩸 Анализ крови")
         st.write("Загрузка изображения → предсказание класса → Top-K вероятностей.")
-        st.page_link("pages/1_Кровь.py", label="Открыть страницу", use_container_width=True)
+        st.page_link("pages/1_blood.py", label="Открыть страницу", use_container_width=True)
 
 with c2:
     with st.container(border=True):
         st.subheader("🏅 Вид спорта по фото")
         st.write("Загрузка фото → определение спорта → Top-K вероятностей.")
-        st.page_link("pages/2_Спорт_по_фото.py", label="Открыть страницу", use_container_width=True)
+        st.page_link("pages/2_sport.py", label="Открыть страницу", use_container_width=True)
 
 with c3:
     with st.container(border=True):
