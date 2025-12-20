@@ -10,7 +10,7 @@ from model.preprocessing_blood import preprocess, CLASS_NAMES
 # Если у тебя в app.py уже есть st.set_page_config(...),
 # то здесь НЕ НАДО вызывать set_page_config.
 
-BLOOD_MODEL_PATH = "model/full_model_blood.pth"
+BLOOD_MODEL_PATH = "pages/model/full_model_blood.pth"
 
 
 # ----------------------------
