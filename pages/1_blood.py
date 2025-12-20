@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from model.preprocessing_blood import preprocess, CLASS_NAMES
+from pages.model.preprocessing_blood import preprocess, CLASS_NAMES
 
 # Если у тебя в app.py уже есть st.set_page_config(...),
 # то здесь НЕ НАДО вызывать set_page_config.
