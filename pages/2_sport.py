@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from model.preprocessing_sport import preprocess, CLASS_NAMES
+from pages.model.preprocessing_sport import preprocess, CLASS_NAMES
 
 # ----------------------------
 # Page config (если это файл-страница в pages/, можно убрать и оставить только в app.py)
