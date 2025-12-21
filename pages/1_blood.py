@@ -137,11 +137,8 @@ def load_blood_model():
     if isinstance(raw, dict):
         raw = {key.replace("module.", "", 1): val for key, val in raw.items()}
 
-    missing, unexpected = model.load_state_dict(raw, strict=False)
-    if missing or unexpected:
-        st.warning(
-            f"⚠️ Веса загружены с несовпадениями слоёв (missing: {len(missing)}, unexpected: {len(unexpected)}).",
-        )
+    model.load_state_dict(raw, strict=False)
+
 
     model.eval()
     return model
