@@ -6,34 +6,51 @@ import streamlit as st
 from PIL import Image
 import torch
 
-# --- project root (for imports on Streamlit Cloud) ---
+# ----------------------------
+# Project root (so imports work on Streamlit Cloud)
+# ----------------------------
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 
-# IMPORTANT: your "model" folder is inside "pages/model"
+# Your code is under: pages/model/...
 from pages.model.preprocessing_blood import preprocess, CLASS_NAMES
 from pages.model.model_blood import MyResNet  # change only if your class name differs
 
-# --- paths ---
-BLOOD_WEIGHTS_PATH = str(ROOT / "pages" / "model" / "model_weights_blood.pth")
-BG_PATH = "assets/bg.jpg"  # put your background image here (repo path)
+# ----------------------------
+# Paths (your current repo layout)
+# ----------------------------
+BLOOD_WEIGHTS_PATH = ROOT / "pages" / "model" / "model_weights_blood.pth"
 
+# NOTE: you wrote "assests" (typo). I support BOTH variants: pages/assests and pages/assets.
+BG_CANDIDATES = [
+    ROOT / "pages" / "assests" / "blood.jpg",  # as you wrote
+    ROOT / "pages" / "assets" / "blood.jpg",   # common spelling
+]
 
-# --- background helper ---
-def set_bg(image_path: str):
-    p = ROOT / image_path
-    if not p.exists():
+# ----------------------------
+# Background helper
+# ----------------------------
+def set_bg():
+    bg_path = next((p for p in BG_CANDIDATES if p.exists()), None)
+    if bg_path is None:
+        # Optional: uncomment if you want an explicit message
+        # st.sidebar.warning("Фон не найден: положи blood.jpg в pages/assets/ или pages/assests/")
         return
-    b64 = base64.b64encode(p.read_bytes()).decode()
+
+    b64 = base64.b64encode(bg_path.read_bytes()).decode("utf-8")
+
     st.markdown(
         f"""
         <style>
+          /* Background image */
           [data-testid="stAppViewContainer"] {{
             background-image: url("data:image/jpeg;base64,{b64}");
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
           }}
+
+          /* Dark overlay for readability */
           [data-testid="stAppViewContainer"]::before {{
             content: "";
             position: fixed;
@@ -41,6 +58,8 @@ def set_bg(image_path: str):
             background: rgba(0,0,0,0.55);
             z-index: 0;
           }}
+
+          /* Keep content above overlay */
           .block-container {{
             position: relative;
             z-index: 1;
@@ -50,10 +69,11 @@ def set_bg(image_path: str):
         unsafe_allow_html=True,
     )
 
+set_bg()
 
-set_bg(BG_PATH)
-
-# --- modern, readable UI style ---
+# ----------------------------
+# Modern UI style
+# ----------------------------
 st.markdown(
     """
     <style>
@@ -85,8 +105,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- class descriptions (short, human) ---
-# NOTE: keys must match your CLASS_NAMES exactly; if your labels differ, update keys.
+# ----------------------------
+# Class descriptions (keys must match CLASS_NAMES)
+# If your CLASS_NAMES are different (e.g., "Neutrophil" vs "NEUTROPHIL"),
+# rename the keys below to match exactly.
+# ----------------------------
 CLASS_DESCRIPTIONS = {
     "NEUTROPHIL": "Нейтрофилы — клетки врождённого иммунитета; одними из первых приходят к очагу инфекции и уничтожают микробы (в т.ч. фагоцитозом).",
     "MONOCYTE": "Моноциты циркулируют в крови; в тканях могут превращаться в макрофаги/дендритные клетки и участвуют в фагоцитозе и регуляции воспаления.",
@@ -94,13 +117,14 @@ CLASS_DESCRIPTIONS = {
     "EOSINOPHIL": "Эозинофилы важны при паразитарных инфекциях и аллергических реакциях; участвуют в воспалительном ответе.",
 }
 
-
-# --- model loader (robust for common checkpoint formats) ---
+# ----------------------------
+# Model loader (robust for common checkpoint formats)
+# ----------------------------
 @st.cache_resource(show_spinner=False)
 def load_blood_model():
     model = MyResNet(num_classes=len(CLASS_NAMES))
 
-    raw = torch.load(BLOOD_WEIGHTS_PATH, map_location="cpu")
+    raw = torch.load(str(BLOOD_WEIGHTS_PATH), map_location="cpu")
 
     # If checkpoint dict -> extract state_dict
     if isinstance(raw, dict):
@@ -109,15 +133,14 @@ def load_blood_model():
                 raw = raw[k]
                 break
 
-    # Remove "module." prefix from DataParallel
+    # Remove "module." prefix if saved from DataParallel
     if isinstance(raw, dict):
         raw = {key.replace("module.", "", 1): val for key, val in raw.items()}
 
     missing, unexpected = model.load_state_dict(raw, strict=False)
     if missing or unexpected:
         st.warning(
-            f"Веса загружены с несовпадениями слоёв (missing: {len(missing)}, unexpected: {len(unexpected)}).",
-            icon="⚠️",
+            f"⚠️ Веса загружены с несовпадениями слоёв (missing: {len(missing)}, unexpected: {len(unexpected)}).",
         )
 
     model.eval()
@@ -141,7 +164,9 @@ def predict_topk(model, pil_img: Image.Image, k: int):
     return best["Класс"], best["Вероятность"], top
 
 
-# --- sidebar ---
+# ----------------------------
+# Sidebar
+# ----------------------------
 with st.sidebar:
     st.title("🩸 Анализ крови")
 
@@ -160,7 +185,9 @@ with st.sidebar:
     st.caption("Совет: лучше работают чёткие изображения без сильной компрессии и смаза.")
 
 
-# --- hero ---
+# ----------------------------
+# Hero
+# ----------------------------
 st.markdown(
     """
     <div class="hero">
@@ -178,7 +205,9 @@ st.markdown(
 st.write("")
 
 
-# --- layout ---
+# ----------------------------
+# Layout
+# ----------------------------
 left, right = st.columns([1.1, 0.9], gap="large")
 
 with left:
@@ -218,10 +247,10 @@ with right:
             st.metric("Уверенность", f"{conf*100:.2f}%")
             st.write("")
 
-            # Show class help only for predicted Top-K
-            predicted_classes = [row["Класс"] for row in top]
+            # Help only for predicted Top-K classes
+            predicted = [row["Класс"] for row in top]
             with st.expander("Справка по предсказанным классам"):
-                for name in predicted_classes:
+                for name in predicted:
                     desc = CLASS_DESCRIPTIONS.get(name, "Описание для этого класса не задано.")
                     st.markdown(f"**{name}** — {desc}")
 
