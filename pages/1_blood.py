@@ -1,58 +1,88 @@
+import sys
+from pathlib import Path
+
 import streamlit as st
 from PIL import Image
 import torch
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parents[1]))
 
+# Чтобы импорты работали на Streamlit Cloud независимо от рабочей директории
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.append(str(ROOT))
+
+# ВАЖНО: у тебя папка model лежит внутри pages/model (по твоей структуре)
 from pages.model.preprocessing_blood import preprocess, CLASS_NAMES
+from pages.model.model_blood import MyResNet  # если класс называется иначе — поменяй здесь
 
-# Если у тебя в app.py уже есть st.set_page_config(...),
-# то здесь НЕ НАДО вызывать set_page_config.
+# Пути к весам (у тебя они лежат в pages/model/)
+BLOOD_WEIGHTS_PATH = str(ROOT / "pages" / "model" / "model_weights_blood.pth")
 
-BLOOD_MODEL_PATH = "pages/model/full_model_blood.pth"
-
+# Описания классов (общие, человеческим языком)
+CLASS_DESCRIPTIONS = {
+    "NEUTROPHIL": "Нейтрофилы — ключевые клетки врождённого иммунитета: одни из первых приходят к очагу инфекции и уничтожают микробы (в т.ч. через фагоцитоз).",
+    "MONOCYTE": "Моноциты циркулируют в крови и при воспалении мигрируют в ткани, где могут превращаться в макрофаги/дендритные клетки; участвуют в фагоцитозе и регуляции воспаления.",
+    "LYMPHOCYTE": "Лимфоциты — основа адаптивного иммунитета (Т- и В-клетки): распознают антигены; В-клетки участвуют в выработке антител, Т-клетки координируют ответ и могут уничтожать инфицированные клетки.",
+    "EOSINOPHIL": "Эозинофилы важны при паразитарных инфекциях и аллергических реакциях; участвуют в воспалительном ответе.",
+}
 
 # ----------------------------
-# Style
+# Page style (современный, но лёгкий)
 # ----------------------------
 st.markdown(
     """
     <style>
-      .block-container { max-width: 1200px; padding-top: 1.4rem; padding-bottom: 2rem; }
+      .block-container { max-width: 1200px; padding-top: 1.4rem; padding-bottom: 2.2rem; }
       #MainMenu {visibility: hidden;}
       footer {visibility: hidden;}
       header {visibility: hidden;}
 
+      .hero {
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 18px;
+        padding: 18px 20px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02));
+      }
+      .h-title { font-size: 32px; font-weight: 820; margin: 0; }
+      .h-sub { margin-top: 8px; opacity: .86; line-height: 1.35; }
+      .note { font-size: 12px; opacity: .75; margin-top: 10px; }
+
       .card {
         border: 1px solid rgba(255,255,255,0.10);
         border-radius: 18px;
-        padding: 16px 18px;
+        padding: 14px 16px;
         background: rgba(255,255,255,0.03);
       }
-      .title { font-size: 32px; font-weight: 800; margin: 0; }
-      .sub { margin-top: 6px; opacity: .85; }
-      .small { font-size: 12px; opacity: .75; margin-top: 10px; }
+
+      .chip {
+        display: inline-block;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.10);
+        background: rgba(255,255,255,0.03);
+        font-size: 12px;
+        opacity: .92;
+      }
     </style>
     """,
     unsafe_allow_html=True
 )
 
 # ----------------------------
-# Model loader
+# Model loader (state_dict, чтобы не ломалось из-за pickle)
 # ----------------------------
 @st.cache_resource(show_spinner=False)
 def load_blood_model():
-    model = torch.load(BLOOD_MODEL_PATH, map_location="cpu", weights_only=False)
+    model = MyResNet(num_classes=len(CLASS_NAMES))
+    state = torch.load(BLOOD_WEIGHTS_PATH, map_location="cpu")
+    model.load_state_dict(state)
     model.eval()
     return model
 
 
 def predict_topk(model, pil_img: Image.Image, k: int):
-    x = preprocess(pil_img)  # ожидаем (1, C, H, W)
+    x = preprocess(pil_img)  # (1, C, H, W)
     with torch.inference_mode():
         logits = model(x)
-        prob = torch.softmax(logits, dim=1).squeeze(0)
+        prob = torch.softmax(logits, dim=1).squeeze(0)  # (num_classes,)
 
     k = min(k, prob.numel())
     confs, idxs = torch.topk(prob, k=k)
@@ -70,27 +100,39 @@ def predict_topk(model, pil_img: Image.Image, k: int):
 # ----------------------------
 with st.sidebar:
     st.title("🩸 Анализ крови")
-    top_k = st.slider("Top-K классов", 2, min(10, len(CLASS_NAMES)), 5, 1)
-    show_probs = st.checkbox("Показывать распределение вероятностей", value=True)
-    st.divider()
-    st.caption("Совет: лучше загружать чёткие изображения с нормальным освещением.")
 
+    k_max = len(CLASS_NAMES)
+    top_k = st.slider(
+        "Сколько классов показать (распределение вероятностей)",
+        min_value=1,
+        max_value=k_max,
+        value=k_max,   # логично показать все 4 из 4
+        step=1,
+        help="Показываем вероятности по наиболее вероятным классам.",
+    )
+
+    show_probs = st.checkbox("Показывать таблицу и график", value=True)
+    st.divider()
+    st.caption("Совет: используйте чёткие изображения (без сильной компрессии и смаза).")
 
 # ----------------------------
 # Hero
 # ----------------------------
 st.markdown(
     """
-    <div class="card">
-      <div class="title">🩸 Классификация изображений крови</div>
-      <div class="sub">Загрузите изображение — получите предсказанный класс и Top-K вероятностей.</div>
-      <div class="small">Дисклеймер: демонстрационный ML-сервис. Не является медицинским заключением.</div>
+    <div class="hero">
+      <div class="h-title">🩸 Классификация лейкоцитов по изображению</div>
+      <div class="h-sub">
+        Загрузите изображение — получите предсказанный класс и распределение вероятностей по классам (в процентах).
+      </div>
+      <div class="note">
+        Дисклеймер: демонстрационный ML-сервис. Не является медицинским заключением.
+      </div>
     </div>
     """,
     unsafe_allow_html=True
 )
 st.write("")
-
 
 # ----------------------------
 # Layout
@@ -109,6 +151,12 @@ with left:
             st.image(img, caption="Загруженное изображение", use_container_width=True)
         except Exception as e:
             st.error(f"Не удалось прочитать изображение: {e}")
+
+    st.write("")
+    with st.expander("Справка по классам"):
+        for name in CLASS_NAMES:
+            desc = CLASS_DESCRIPTIONS.get(name, "Описание для этого класса не задано.")
+            st.markdown(f"**{name}** — {desc}")
 
 with right:
     st.subheader("Результат")
@@ -131,30 +179,45 @@ with right:
 
         if top:
             st.success(f"Предсказанный класс: **{label}**")
-            st.metric("Уверенность", f"{conf:.2%}")
+            st.metric("Уверенность", f"{conf*100:.2f}%")
+            st.write("")
 
             if show_probs:
                 try:
                     import pandas as pd
+                    import altair as alt
+
                     df = pd.DataFrame(top)
-                    df["Вероятность"] = df["Вероятность"].round(6)
+                    df["Вероятность, %"] = (df["Вероятность"] * 100).round(2)
+                    df = df.drop(columns=["Вероятность"])
 
                     st.markdown("<div class='card'>", unsafe_allow_html=True)
-                    st.write("**Top-K вероятности**")
+                    st.write("**Распределение вероятностей по классам**")
+
                     st.dataframe(df, use_container_width=True, hide_index=True)
 
-                    chart_df = df.set_index("Класс")[["Вероятность"]]
-                    st.bar_chart(chart_df, use_container_width=True)
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    chart = (
+                        alt.Chart(df)
+                        .mark_bar()
+                        .encode(
+                            x=alt.X("Вероятность, %:Q", title="Вероятность, %"),
+                            y=alt.Y("Класс:N", sort="-x", title=""),
+                            tooltip=["Класс:N", alt.Tooltip("Вероятность, %:Q", format=".2f")],
+                        )
+                    )
+                    st.altair_chart(chart, use_container_width=True)
 
                     st.download_button(
-                        "Скачать Top-K как CSV",
+                        "Скачать вероятности (CSV)",
                         data=df.to_csv(index=False).encode("utf-8"),
-                        file_name="blood_topk.csv",
+                        file_name="blood_probabilities.csv",
                         mime="text/csv",
                         use_container_width=True,
                     )
+                    st.markdown("</div>", unsafe_allow_html=True)
+
                 except Exception:
-                    st.write("**Top-K вероятности**")
+                    # Fallback без pandas/altair
+                    st.write("**Распределение вероятностей по классам**")
                     for row in top:
-                        st.write(f"- {row['Класс']}: {row['Вероятность']:.2%}")
+                        st.write(f"- {row['Класс']}: {row['Вероятность']*100:.2f}%")
