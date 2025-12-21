@@ -45,7 +45,7 @@ st.markdown(
 # ----------------------------
 @st.cache_resource(show_spinner=False)
 def load_model():
-    model = torch.load("model/full_model_sport.pth", map_location="cpu", weights_only=False)
+    model = torch.load("pages/model/full_model_sport.pth", map_location="cpu", weights_only=False)
     model.eval()
     return model
 
