@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from pages.model.preprocessing_sport import preprocess, CLASS_NAMES
+from pages.model.model_sport import MyResNet
 
 # ----------------------------
 # Page config (если это файл-страница в pages/, можно убрать и оставить только в app.py)
@@ -45,7 +46,9 @@ st.markdown(
 # ----------------------------
 @st.cache_resource(show_spinner=False)
 def load_model():
-    model = torch.load("pages/model/full_model_sport.pth", map_location="cpu", weights_only=False)
+    model = MyResNet(num_classes=len(CLASS_NAMES))
+    state = torch.load("pages/model/model_weights_sport.pth", map_location="cpu")
+    model.load_state_dict(state)
     model.eval()
     return model
 
