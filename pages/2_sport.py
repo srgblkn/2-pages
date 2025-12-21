@@ -21,22 +21,15 @@ from pages.model.model_sport import MyResNet  # change only if your class name d
 # ----------------------------
 SPORT_WEIGHTS_PATH = ROOT / "pages" / "model" / "model_weights_sport.pth"
 
-# NOTE: user said "assests" (typo). Support BOTH.
+# NOTE: user has "assests" folder. Support BOTH.
 BG_CANDIDATES = [
     ROOT / "pages" / "assests" / "sport.jpg",
     ROOT / "pages" / "assets" / "sport.jpg",
 ]
 
-# Optional: short hints per class (keys must match CLASS_NAMES exactly)
-# If you don't want it, leave the dict empty {}.
-CLASS_HINTS = {
-    # "football": "Подсказка/описание",
-    # "basketball": "Подсказка/описание",
-}
-
 
 # ----------------------------
-# Background helper
+# Background helper (stronger dark overlay for readability)
 # ----------------------------
 def set_bg():
     bg_path = next((p for p in BG_CANDIDATES if p.exists()), None)
@@ -56,12 +49,12 @@ def set_bg():
             background-attachment: fixed;
           }}
 
-          /* Dark overlay for readability */
+          /* Strong dark overlay for readability on bright photos */
           [data-testid="stAppViewContainer"]::before {{
             content: "";
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.55);
+            background: rgba(0,0,0,0.72);
             z-index: 0;
           }}
 
@@ -79,7 +72,7 @@ def set_bg():
 set_bg()
 
 # ----------------------------
-# Modern UI style
+# Modern UI style (slightly darker cards)
 # ----------------------------
 st.markdown(
     """
@@ -89,35 +82,47 @@ st.markdown(
       footer {visibility: hidden;}
       header {visibility: hidden;}
 
+      /* Improve default text readability */
+      .stMarkdown, .stText, .stCaption, .stAlert, label, p, div {{
+        text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+      }}
+
       .hero {
-        border: 1px solid rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.14);
         border-radius: 18px;
         padding: 18px 20px;
-        background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
-        backdrop-filter: blur(6px);
+        background: rgba(0,0,0,0.35);
+        backdrop-filter: blur(8px);
       }
       .h-title { font-size: 32px; font-weight: 820; margin: 0; }
-      .h-sub { margin-top: 8px; opacity: .88; line-height: 1.35; }
-      .note { font-size: 12px; opacity: .78; margin-top: 10px; }
+      .h-sub { margin-top: 8px; opacity: .92; line-height: 1.35; }
+      .note { font-size: 12px; opacity: .82; margin-top: 10px; }
 
       .card {
-        border: 1px solid rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.14);
         border-radius: 18px;
         padding: 14px 16px;
-        background: rgba(255,255,255,0.04);
-        backdrop-filter: blur(6px);
+        background: rgba(0,0,0,0.30);
+        backdrop-filter: blur(8px);
       }
 
       .pill {
         display: inline-block;
         padding: 6px 10px;
         border-radius: 999px;
-        border: 1px solid rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(0,0,0,0.28);
         font-size: 12px;
-        opacity: .9;
+        opacity: .95;
         margin-right: 8px;
+        margin-bottom: 8px;
       }
+
+      /* Make Streamlit info boxes more readable on bright backgrounds */
+      [data-testid="stAlert"] {{
+        background: rgba(0,0,0,0.35) !important;
+        border: 1px solid rgba(255,255,255,0.14) !important;
+      }}
     </style>
     """,
     unsafe_allow_html=True,
@@ -182,7 +187,6 @@ with st.sidebar:
     )
 
     show_probs = st.checkbox("Показывать таблицу и график", value=True)
-    show_hints = st.checkbox("Показывать пояснения по предсказанным классам", value=True)
 
     st.divider()
     st.caption("Совет: лучше работают фото с видимым контекстом (поле/корт/дорожка/форма).")
@@ -246,26 +250,15 @@ with right:
                 top = None
 
         if top:
-            # headline result
             st.success(f"Предсказанный вид спорта: **{label}**")
             st.metric("Уверенность", f"{conf*100:.2f}%")
 
-            # quick “pills” for Top-K
             st.write("")
             pills = " ".join(
                 [f"<span class='pill'>{row['Класс']}: {row['Вероятность']*100:.1f}%</span>" for row in top]
             )
             st.markdown(pills, unsafe_allow_html=True)
             st.write("")
-
-            # Optional: show hints only for predicted classes
-            if show_hints and CLASS_HINTS:
-                predicted = [row["Класс"] for row in top]
-                with st.expander("Пояснения по предсказанным классам"):
-                    for name in predicted:
-                        hint = CLASS_HINTS.get(name)
-                        if hint:
-                            st.markdown(f"**{name}** — {hint}")
 
             if show_probs:
                 try:
