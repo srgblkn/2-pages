@@ -97,7 +97,7 @@ with st.sidebar:
     st.divider()
     st.caption("Страницы:")
 
-    st.page_link("pages/1_blood.py", label="Анализ кровяных штук", icon="🩸")
+    st.page_link("pages/1_blood.py", label="Анализ ДОБРЫХ ДЕЛ", icon="🩸")
     st.page_link("pages/2_sport.py", label="Вида спорта по фото", icon="🏅")
 
 # ----------------------------
